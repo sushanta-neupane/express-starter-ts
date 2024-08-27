@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Song Recognition</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f4f4f4;
+      }
+
+      .container {
+        text-align: center;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        margin-bottom: 20px;
+      }
+
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        background-color: #999;
+        cursor: not-allowed;
+      }
+
+      .status {
+        margin-top: 20px;
+        font-size: 18px;
+        color: #333;
+      }
+
+      .song-data {
+        margin-top: 20px;
+        font-size: 16px;
+        color: #007bff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Real-Time Song Recognition</h1>
+      <button id="start-button">Start Listening</button>
+      <div class="status" id="status">Click "Start Listening" to begin</div>
+      <div class="song-data" id="song-data"></div>
+    </div>
+
+    <script>
+      const startButton = document.getElementById('start-button');
+      const statusDiv = document.getElementById('status');
+      const songDataDiv = document.getElementById('song-data');
+
+      let mediaRecorder;
+      let isListening = false;
+
+      startButton.addEventListener('click', async () => {
+        if (!isListening) {
+          isListening = true;
+          startButton.textContent = 'Stop Listening';
+          statusDiv.textContent = 'Listening...';
+
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.start(1000); // Record in 1-second intervals
+
+          mediaRecorder.ondataavailable = async (event) => {
+            const audioChunk = event.data;
+
+            // Send the chunk to the backend
+            const response = await fetch('/recognize', {
+              method: 'POST',
+              body: audioChunk,
+              headers: {
+                'Content-Type': 'audio/mp3', // Adjust content type based on format
+              },
+            });
+
+            const result = await response.json();
+            if (result.songData) {
+              songDataDiv.textContent = `Song recognized: ${result.songData}`;
+              statusDiv.textContent = 'Song recognized!';
+            } else {
+              statusDiv.textContent = 'Keep listening...';
+            }
+          };
+
+          mediaRecorder.onstop = () => {
+            stream.getTracks().forEach((track) => track.stop()); // Stop the microphone
+            isListening = false;
+            startButton.textContent = 'Start Listening';
+            statusDiv.textContent = 'Stopped listening.';
+          };
+        } else {
+          mediaRecorder.stop();
+        }
+      });
+    </script>
+  </body>
+</html>

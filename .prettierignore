@@ -1,0 +1,6 @@
+# Build directory
+dist
+
+
+# NPM files
+package.json
